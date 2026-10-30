@@ -1,11 +1,7 @@
-import chromadb
 from chromadb.api.types import Embeddable, Images, Documents, Embeddings
 import chromadb.api.types as chromadb_types
 import chromadb.utils.embedding_functions as embedding_functions
 from sentence_transformers import SentenceTransformer
-from converter import MultimodalIngestor
-from pathlib import Path
-from pprint import pprint
 from PIL import Image
 from typing import cast, Union
 import numpy as np
@@ -88,6 +84,34 @@ class PromptedLlamaCppEmbeddingFunction(embedding_functions.EmbeddingFunction):
         items = response.json().get("data", [])
         return [item["embedding"] for item in items]
 
+    def _image_to_base64_string(self, image: Image.Image):
+        if image.mode != "RGB":
+            image = image.convert("RGB")
+
+        buffer = BytesIO()
+        image.save(buffer, format="JPEG", quality=85)
+        img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+        return img_str
+
+    def _make_llamacpp_content(self, input, content_type: str = "text"):
+        if content_type == "text":
+            return {
+                "content": [
+                    {"type": "text", "text": input}
+                ]
+            }
+
+        if content_type == "image":
+            return {
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{input}"}
+                    },
+                ]
+            }
+
     def __call__(self, input: Union[Documents, Images]) -> Embeddings:
         if len(input) == 0:
             return []
@@ -103,11 +127,7 @@ class PromptedLlamaCppEmbeddingFunction(embedding_functions.EmbeddingFunction):
             if isinstance(batch[0], str):
                 for text in batch:
                     formatted_text = self.doc_template.format(text=text)
-                    batch_inputs.append({
-                        "content": [
-                            {"type": "text", "text": formatted_text}
-                        ]
-                    })
+                    batch_inputs.append(self._make_llamacpp_content(formatted_text, "text"))
                 
                 batch_embeddings = self._call_llama_cpp(batch_inputs)
                 all_embeddings.extend(batch_embeddings)
@@ -119,24 +139,12 @@ class PromptedLlamaCppEmbeddingFunction(embedding_functions.EmbeddingFunction):
                 
                 for img_array in batch:
                     img = Image.fromarray(img_array.astype(np.uint8))
-                    
-                    buffer = BytesIO()
-                    img.save(buffer, format="JPEG", quality=85)
-                    img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
-                    
-                    batch_inputs.append({
-                        "content": [
-                            {
-                                "type": "image_url",
-                                "image_url": {"url": f"data:image/jpeg;base64,{img_str}"}
-                            },
-                            {"type": "text", "text": "\n"}
-                        ]
-                    })
+                    img_str = self._image_to_base64_string(img)
+                    batch_inputs.append(self._make_llamacpp_content(img_str, "image"))
                     
                 batch_embeddings = self._call_llama_cpp(batch_inputs)
                 all_embeddings.extend(batch_embeddings)
-                
+        
         return all_embeddings
 
     def embed_queries(self, queries: Documents) -> Embeddings:
@@ -147,72 +155,6 @@ class PromptedLlamaCppEmbeddingFunction(embedding_functions.EmbeddingFunction):
         batch_inputs = []
         for text in queries:
             formatted_text = self.query_template.format(text=text)
-            batch_inputs.append({
-                "content": [
-                    {"type": "text", "text": formatted_text}
-                ]
-            })
+            batch_inputs.append(self._make_llamacpp_content(formatted_text, "text"))
             
         return self._call_llama_cpp(batch_inputs)
-
-if __name__ == "__main__":
-    client = chromadb.PersistentClient(path="../data/chroma.db")
-
-    # custom_ef = SentenceTransformerEmbedder(
-    #     model="google/embeddinggemma-2"
-    # )
-    
-    custom_ef = PromptedLlamaCppEmbeddingFunction(
-        api_key="None",
-        api_base="http://192.168.0.200:7777/v1",
-        model_name="EmbeddingGemma2",
-        doc_template="title: none | text: {text}",
-        query_template="task: search result | query: {text}",
-        support_images=True
-    )
-    
-    collection = client.get_or_create_collection(
-        name="testing",
-        embedding_function=custom_ef
-    )
-
-    # ingestor = MultimodalIngestor(output_dir="../data/pipeline_images")
-
-    # processed_docs = ingestor.process_file("../ga-z270x-gaming5.pdf")
-
-    # img_list = []
-    # metadata_list = []
-    # id_list = []
-
-    # for doc in processed_docs:
-    #     if doc["source_type"] == "pdf_page_image":
-    #         doc_image = Image.open(doc["image_path"])
-    #         img_array = np.array(doc_image)
-    #         doc_metadata = doc["metadata"]
-    #         doc_metadata["source_file"] = doc["original_pdf"]
-
-    #         id_list.append(Path(doc["image_path"]).name.split(".")[0])
-    #         img_list.append(img_array)
-    #         metadata_list.append(doc_metadata)
-
-    # print(len(img_list))
-    # print(len(metadata_list))
-    # print(len(id_list))
-            
-
-    # collection.add(
-    #     ids=id_list,
-    #     images=img_list,
-    #     metadatas=metadata_list
-    # )
-
-    query_texts=[
-        "PCIe Configurations"
-    ]
-
-    results = collection.query(
-        query_texts=query_texts,
-        n_results=5
-    )
-
-    pprint(results)

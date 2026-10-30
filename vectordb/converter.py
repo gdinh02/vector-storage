@@ -60,16 +60,16 @@ class MultimodalIngestor:
             page = doc[page_num]
             
             # # 1. Get the original physical dimensions of the PDF page
-            # rect = page.rect 
+            rect = page.rect 
             
             # # 2. Calculate the scaling factor needed to fit within max_size
-            # scale_w = max_size / rect.width
-            # scale_h = max_size / rect.height
+            scale_w = max_size / rect.width
+            scale_h = max_size / rect.height
             
-            # zoom_factor = min(scale_w, scale_h, 3.0)
+            zoom_factor = min(scale_w, scale_h, 3.0)
             
             # Matrix(2, 2) doubles the resolution (roughly 144 DPI) for better VLM legibility
-            mat = pymupdf.Matrix(2.0, 2.0)
+            mat = pymupdf.Matrix(zoom_factor, zoom_factor)
             pix = page.get_pixmap(matrix=mat)
             
             output_image_path = os.path.join(self.output_dir, f"{base_filename}_page_{page_num + 1}.png")
