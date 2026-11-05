@@ -1,4 +1,6 @@
 .vscode
 .venv-vecdb
+**/__pycache__
 
 data
+test-docs

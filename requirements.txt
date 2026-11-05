@@ -1,5 +1,6 @@
 transformers
-sentence-transformers[image]
+sentence-transformers[image,video,audio]
+torchcodec
 openai
 Pillow
 chromadb
