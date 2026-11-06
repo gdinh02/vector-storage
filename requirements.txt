@@ -6,3 +6,4 @@ Pillow
 chromadb
 pymupdf
 langchain-text-splitters
+av

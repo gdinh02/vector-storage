@@ -1,16 +1,19 @@
 from abc import ABC, abstractmethod
 import os
+from chromadb.api.types import Document, Image
 import pymupdf
 from pathlib import Path
 import chromadb.api.types as chromadb_types
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from typing import Iterator
+from typing import Any, Iterator
 
 from .storage import Storage
 
 from PIL import Image as PIL_Image
 import numpy as np
 import mimetypes
+
+import av
 
 
 class EmbeddableDocument(ABC):
@@ -132,7 +135,26 @@ class PDFDocument(EmbeddableDocument):
 
     def doc_type(self):
         return self.file_type
+    
+class MiscellaneousDocument(EmbeddableDocument):
+    def __init__(self, storage: Storage, dir_name: str, file_name: str):
+        self.storage = storage
+        self.dir_name = dir_name
+        self.file_name = file_name
+        self.file_type = "misc"
+        self.source_path = f"{dir_name}/{file_name}"
 
+    def to_vectordoc(self) -> Iterator[tuple[chromadb_types.Image | chromadb_types.Document, dict]]:
+        base_filename = Path(self.file_name).stem
+        
+        yield base_filename, {
+            "source_type": self.file_type,
+            "source_path": self.source_path,
+            "filename": self.file_name,
+        }
+        
+    def doc_type(self):
+        return self.file_type
 
 def document_from_storage(storage: Storage, dir_name: str, file_name: str) -> EmbeddableDocument:
     """Factory to generate the correct document type using Storage."""
@@ -148,5 +170,5 @@ def document_from_storage(storage: Storage, dir_name: str, file_name: str) -> Em
         return ImageDocument(storage, dir_name, file_name)
     else:
         print(f"Unsupported file type for {file_name}. Skipping.")
-        return None
+        return MiscellaneousDocument(storage, dir_name, file_name)
 

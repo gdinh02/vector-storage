@@ -4,18 +4,31 @@ from vectordb.pipeline import VectorDatabasePipeline
 from vectordb.storage import DirectoryStorage
 
 from pprint import pprint
+from dotenv import load_dotenv
+import os
 
 if __name__ == "__main__":
-    chroma_client = chromadb.PersistentClient(path="./data/chroma.db")
+    
+    load_dotenv()
+    
+    api_key = os.getenv("API_KEY")
+    api_url = os.getenv("API_URL")
+    db_url = os.getenv("DB_URL")
+    test_docs_dir = os.getenv("TEST_DOCS_DIR")
+    
+    if None in [api_key, api_url, db_url, test_docs_dir]:
+        exit(-1)
+    
+    chroma_client = chromadb.PersistentClient(path=db_url)
     custom_ef = PromptedLlamaCppEmbeddingFunction(
-            api_key="None",
-            api_base="http://192.168.0.200:7777/v1",
+            api_key=api_key,
+            api_base=api_url,
             model_name="EmbeddingGemma2",
             doc_template="title: none | text: {text}",
             query_template="task: search result | query: {text}",
             support_images=True
         )
-    storage = DirectoryStorage("./test-docs")
+    storage = DirectoryStorage(test_docs_dir)
 
     pipeline = VectorDatabasePipeline(
         chromadb=chroma_client,
@@ -24,14 +37,14 @@ if __name__ == "__main__":
         file_storage=storage
     )
 
-    pipeline.sync_directory(
+    pipeline.add_dir_to_collection(
         "testing",
         "."
     )
 
     results = pipeline.query_database(
         collection="testing",
-        queries=["Election Enrolment Form"]
+        queries=["PC Case"]
     )
 
     pprint(results)
