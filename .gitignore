@@ -4,3 +4,10 @@
 
 data
 test-docs
+
+server/models
+server/qdrant_local
+server/uploaded_files
+server/.env
+
+test*

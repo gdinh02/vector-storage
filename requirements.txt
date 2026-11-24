@@ -1,8 +1,7 @@
-transformers
-sentence-transformers[image,video,audio]
-torchcodec
-openai
 Pillow
-chromadb
 pymupdf
 langchain-text-splitters
+qdrant-client[fastembed-gpu]
+uuid6
+flask
+python-dotenv

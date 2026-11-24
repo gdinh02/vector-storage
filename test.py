@@ -1,12 +1,14 @@
 import chromadb
 from vectordb.embedder import PromptedLlamaCppEmbeddingFunction
-from vectordb.pipeline import VectorDatabasePipeline
+# 1. Update the import to the new Chroma-specific subclass
+from vectordb.pipeline import ChromaDBPipeline 
 from vectordb.storage import DirectoryStorage
 
 from pprint import pprint
 
 if __name__ == "__main__":
     chroma_client = chromadb.PersistentClient(path="./data/chroma.db")
+    
     custom_ef = PromptedLlamaCppEmbeddingFunction(
             api_key="None",
             api_base="http://192.168.0.200:7777/v1",
@@ -17,8 +19,9 @@ if __name__ == "__main__":
         )
     storage = DirectoryStorage("./test-docs")
 
-    pipeline = VectorDatabasePipeline(
-        chromadb=chroma_client,
+    # 2. Instantiate the ChromaDBPipeline
+    pipeline = ChromaDBPipeline(
+        chromadb_client=chroma_client,  # 3. Update keyword from `chromadb` to `chromadb_client`
         embedding_func=custom_ef,
         embedding_batch_size=8,
         file_storage=storage

@@ -1,0 +1,7 @@
+Pillow
+pymupdf
+langchain-text-splitters
+qdrant-client[fastembed-gpu]
+uuid6
+flask
+python-dotenv
