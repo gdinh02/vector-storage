@@ -31,7 +31,7 @@ class QdrantMultimodalDB():
             raise ValueError("Either db_path or host/port must be provided.")
 
         # Check if model is supported
-        if any(m["model"] == model_name for m in LateInteractionMultimodalEmbedding.list_BATCHsupported_models()):
+        if any(m["model"] == model_name for m in LateInteractionMultimodalEmbedding.list_supported_models()):
             self.model_name = model_name
         else:
             raise ValueError(f"{model_name} is not supported by Qdrant")
@@ -122,13 +122,12 @@ class QdrantMultimodalDB():
         with self._model_lock:
             model = self._get_model_locked()
             try:
-                for i in range(0, len(documents), batch_size):
-                    if isinstance(documents[0], str):
-                        doc_vectors = list(model.embed_text(documents, batch_size=batch_size))
-                    elif isinstance(documents[0], Image.Image):
-                        doc_vectors = list(model.embed_image(documents, batch_size=batch_size))
-                    else:
-                        raise TypeError(f"Unsupported document type: {type(documents[0])}")
+                if isinstance(documents[0], str):
+                    doc_vectors = list(model.embed_text(documents, batch_size=batch_size))
+                elif isinstance(documents[0], Image.Image):
+                    doc_vectors = list(model.embed_image(documents, batch_size=batch_size))
+                else:
+                    raise TypeError(f"Unsupported document type: {type(documents[0])}")
             finally:
                 self._schedule_unload_locked()
 
