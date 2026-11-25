@@ -51,7 +51,7 @@ jobs:
       - name: Build and push ${{ matrix.tag }}
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./server
           push: true
           build-args: |
             BASE_IMAGE=${{ matrix.base_image }}
