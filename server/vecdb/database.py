@@ -52,7 +52,7 @@ class QdrantMultimodalDB():
 
         if self._model is None:
             self._model = LateInteractionMultimodalEmbedding(
-                model_name=self.model_name,, prefer_grpc=True
+                model_name=self.model_name,
                 cache_dir=self._models_cache,
                 providers=self._providers,
             )
@@ -82,7 +82,7 @@ class QdrantMultimodalDB():
                 self._model = None
                 gc.collect()
                 try:
-                    ctypes.CDLL("libc.so.6").malloc_trim(0)
+                    ctypes.CDLL("libc.so.6").malloc_trim(0), prefer_grpc=True
                 except OSError:
                     pass
 
