@@ -94,7 +94,7 @@ class Pipeline:
         file_id: str | None = None,
         metadata: dict | None = None,
     ) -> str:
-        """Copies a file into storage_dir, embeds its contents, and indexes it in Qdrant."""
+        """Embeds a file's contents and indexes it in Qdrant."""
         self._ensure_collection(collection)
 
         src = Path(source_path)
@@ -102,27 +102,19 @@ class Pipeline:
             raise FileNotFoundError(f"Source file not found: {src}")
 
         file_id = file_id or str(uuid7())
-        dest = self._stored_path(file_id, src.suffix)
-        shutil.copy2(src, dest)
-
-        try:
-            ids, documents, payloads = self._extract_documents(dest, file_id, metadata)
-            if ids:
-                self.db.add_to_collection(
-                    collection_name=collection,
-                    ids=ids,
-                    documents=documents,
-                    payload=payloads,
-                )
-        except Exception:
-            # Roll back the saved file if indexing fails
-            dest.unlink(missing_ok=True)
-            raise
+        ids, documents, payloads = self._extract_documents(src, file_id, metadata)
+        if ids:
+            self.db.add_to_collection(
+                collection_name=collection,
+                ids=ids,
+                documents=documents,
+                payload=payloads,
+            )
 
         return file_id
 
     def delete_file(self, file_id: str, collection: str) -> None:
-        """Removes all Qdrant points for file_id and deletes the stored file from disk."""
+        """Removes all Qdrant points for file_id."""
         selector = models.FilterSelector(
             filter=models.Filter(
                 must=[
@@ -138,19 +130,21 @@ class Pipeline:
             ids=selector,
         )
 
-        stored_file = self._find_stored_file(file_id)
-        if stored_file:
-            stored_file.unlink(missing_ok=True)
-
     def update_file(
         self,
         file_id: str,
         new_source_path: str | Path,
+        collection: str,
         metadata: dict | None = None,
     ) -> str:
-        """Replaces an existing file's stored copy and Qdrant vectors under the same file_id."""
-        self.delete_file(file_id)
-        return self.upload_file(new_source_path, file_id=file_id, metadata=metadata)
+        """Replaces an existing file's Qdrant vectors under the same file_id."""
+        self.delete_file(file_id=file_id, collection=collection)
+        return self.upload_file(
+            new_source_path,
+            collection=collection,
+            file_id=file_id,
+            metadata=metadata,
+        )
 
     def query(
         self,
