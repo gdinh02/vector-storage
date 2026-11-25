@@ -1,5 +1,7 @@
-# CUDA 12 + cuDNN 9 runtime image (compatible with onnxruntime-gpu >= 1.19)
-FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+ARG BASE_IMAGE=nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+FROM ${BASE_IMAGE}
+
+ARG ORT_GPU_SPEC="onnxruntime-gpu==1.20.1"
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
@@ -26,7 +28,7 @@ RUN pip3 install --no-cache-dir --upgrade pip && \
     pip3 install --no-cache-dir -r requirements.txt && \
     # Ensure GPU build of onnxruntime is active (not CPU-only)
     pip3 uninstall -y onnxruntime onnxruntime-gpu || true && \
-    pip3 install --no-cache-dir onnxruntime-gpu[cuda,cudnn]
+    pip3 install --no-cache-dir "${ORT_GPU_SPEC}"
 
 # Copy application code
 COPY . .
