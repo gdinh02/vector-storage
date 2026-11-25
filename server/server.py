@@ -22,7 +22,7 @@ DEFAULT_COLLECTION = "general"
 
 # Ensure CUDA/cuDNN libs are preloaded when using GPU
 PROVIDERS = os.getenv("ONNX_PROVIDERS", "CPUExecutionProvider").strip().split(",")
-if "CUDAExecutionProvider" in PROVIDERS:
+if "CUDAExecutionProvider" in PROVIDERS and hasattr(ort, "preload_dlls"):
     ort.preload_dlls()
 
 PROVIDERS = [
