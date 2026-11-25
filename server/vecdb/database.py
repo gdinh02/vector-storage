@@ -22,16 +22,16 @@ class QdrantMultimodalDB():
         idle_timeout: float | None = 60.0,
     ):
         if db_url:
-            self.client = QdrantClient(location=db_url)
+            self.client = QdrantClient(location=db_url, prefer_grpc=True)
         elif db_path:
-            self.client = QdrantClient(path=db_path)    
+            self.client = QdrantClient(path=db_path, prefer_grpc=True)    
         elif host and port:
-            self.client = QdrantClient(host=host, port=port)
+            self.client = QdrantClient(host=host, port=port, prefer_grpc=True)
         else:
             raise ValueError("Either db_path or host/port must be provided.")
 
         # Check if model is supported
-        if any(m["model"] == model_name for m in LateInteractionMultimodalEmbedding.list_supported_models()):
+        if any(m["model"] == model_name for m in LateInteractionMultimodalEmbedding.list_BATCHsupported_models()):
             self.model_name = model_name
         else:
             raise ValueError(f"{model_name} is not supported by Qdrant")
@@ -52,7 +52,7 @@ class QdrantMultimodalDB():
 
         if self._model is None:
             self._model = LateInteractionMultimodalEmbedding(
-                model_name=self.model_name,
+                model_name=self.model_name,, prefer_grpc=True
                 cache_dir=self._models_cache,
                 providers=self._providers,
             )
@@ -111,7 +111,7 @@ class QdrantMultimodalDB():
                           ids: Sequence[qdrant_types.PointId], 
                           documents: Sequence[str] | Sequence[Image.Image],
                           payload: Sequence[dict],
-                          batch_size: int = 2,):
+                          batch_size: int = 4,):
 
         if not (len(ids) == len(documents) == len(payload)):
             raise ValueError("Inputs length must be the same")
@@ -122,12 +122,13 @@ class QdrantMultimodalDB():
         with self._model_lock:
             model = self._get_model_locked()
             try:
-                if isinstance(documents[0], str):
-                    doc_vectors = list(model.embed_text(documents, batch_size=batch_size))
-                elif isinstance(documents[0], Image.Image):
-                    doc_vectors = list(model.embed_image(documents, batch_size=batch_size))
-                else:
-                    raise TypeError(f"Unsupported document type: {type(documents[0])}")
+                for i in range(0, len(documents), batch_size):
+                    if isinstance(documents[0], str):
+                        doc_vectors = list(model.embed_text(documents, batch_size=batch_size))
+                    elif isinstance(documents[0], Image.Image):
+                        doc_vectors = list(model.embed_image(documents, batch_size=batch_size))
+                    else:
+                        raise TypeError(f"Unsupported document type: {type(documents[0])}")
             finally:
                 self._schedule_unload_locked()
 
@@ -135,7 +136,8 @@ class QdrantMultimodalDB():
             collection_name=collection_name,
             vectors=doc_vectors,
             payload=payload,
-            ids=ids
+            ids=ids,
+            batch_size=4
         )
 
     def query_collection(
