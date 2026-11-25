@@ -82,7 +82,7 @@ class QdrantMultimodalDB():
                 self._model = None
                 gc.collect()
                 try:
-                    ctypes.CDLL("libc.so.6").malloc_trim(0), prefer_grpc=True
+                    ctypes.CDLL("libc.so.6").malloc_trim(0)
                 except OSError:
                     pass
 
